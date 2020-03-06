@@ -649,18 +649,21 @@ public class UserController {
 			if (oldImage != null) {
 				new File(imageDir + oldImage).delete();
 			}
-
+			
+			
 			// TODO: check if file is png first
-			try {
-				String extension = file.getOriginalFilename().substring(file.getOriginalFilename().lastIndexOf("."));
-				String path = imageDir + username + extension;
+			String extension = file.getOriginalFilename().substring(file.getOriginalFilename().lastIndexOf("."));
+			if(extension.contains(".png")) {
+				try {
+					
+					String path = imageDir + username + extension;
+					logger.info("Saving new profile image: " + path);
 
-				logger.info("Saving new profile image: " + path);
-
-				file.transferTo(new File(path)); // will delete any existing file first
-			}
-			catch (IllegalStateException | IOException ex) {
-				logger.error(ex);
+					file.transferTo(new File(path)); // will delete any existing file first
+				}
+				catch (IllegalStateException | IOException ex) {
+					logger.error(ex);
+				}
 			}
 		}
 
@@ -695,55 +698,60 @@ public class UserController {
 
 		InputStream inputStream = null;
 		OutputStream outStream = null;
-		try {
-			File downloadFile = new File(path);
-			inputStream = new FileInputStream(downloadFile);
-
-			// get MIME type of the file
-			String mimeType = context.getMimeType(path);
-			if (mimeType == null) {
-				// set to binary type if MIME mapping not found
-				mimeType = "application/octet-stream";
-			}
-			logger.info("MIME type: " + mimeType);
-
-			// Set content attributes for the response
-			response.setContentType(mimeType);
-			response.setContentLength((int) downloadFile.length());
-			response.setHeader("Content-Disposition", "attachment; filename=" + imageName);
-
-			// get output stream of the response
-			outStream = response.getOutputStream();
-			byte[] buffer = new byte[4096];
-			int bytesRead = -1;
-
-			// write bytes read from the input stream into the output stream
-			while ((bytesRead = inputStream.read(buffer)) != -1) {
-				outStream.write(buffer, 0, bytesRead);
-			}
-			outStream.flush();
-		}
-		catch (IllegalStateException | IOException ex) {
-			logger.error(ex);
-		}
-		finally {
+		
+		// Directory Transversal Remediation
+		//if(imageName.contains(".png")) {
 			try {
-				if (inputStream != null) {
-					inputStream.close();
+				File downloadFile = new File(path);
+				inputStream = new FileInputStream(downloadFile);
+
+				// get MIME type of the file
+				String mimeType = context.getMimeType(path);
+				if (mimeType == null) {
+					// set to binary type if MIME mapping not found
+					mimeType = "application/octet-stream";
 				}
+				logger.info("MIME type: " + mimeType);
+
+				// Set content attributes for the response
+				response.setContentType(mimeType);
+				response.setContentLength((int) downloadFile.length());
+				response.setHeader("Content-Disposition", "attachment; filename=" + imageName);
+
+				// get output stream of the response
+				outStream = response.getOutputStream();
+				byte[] buffer = new byte[4096];
+				int bytesRead = -1;
+
+				// write bytes read from the input stream into the output stream
+				while ((bytesRead = inputStream.read(buffer)) != -1) {
+					outStream.write(buffer, 0, bytesRead);
+				}
+				outStream.flush();
 			}
-			catch (IOException ex) {
+			catch (IllegalStateException | IOException ex) {
 				logger.error(ex);
 			}
-			try {
-				if (outStream != null) {
-					outStream.close();
+			finally {
+				try {
+					if (inputStream != null) {
+						inputStream.close();
+					}
+				}
+				catch (IOException ex) {
+					logger.error(ex);
+				}
+				try {
+					if (outStream != null) {
+						outStream.close();
+					}
+				}
+				catch (IOException ex) {
+					logger.error(ex);
 				}
 			}
-			catch (IOException ex) {
-				logger.error(ex);
-			}
-		}
+		//}
+		
 
 		return "profile";
 	}
